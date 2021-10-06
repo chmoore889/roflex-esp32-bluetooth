@@ -11,6 +11,8 @@
 #include "bleprph.h"
 #include "i2c.h"
 
+#define TIMER_PERIOD pdMS_TO_TICKS(1000)
+
 static const char *tag = "Bluetooth App";
 
 static int bleprph_gap_event(struct ble_gap_event *event, void *arg);
@@ -111,23 +113,18 @@ bleprph_advertise(void)
     }
 }
 
-/**
- * The nimble host executes this callback when a GAP event occurs.  The
- * application associates a GAP event callback with each connection that forms.
- * bleprph uses the same callback for all connections.
- *
- * @param event                 The type of event being signalled.
- * @param ctxt                  Various information pertaining to the event.
- * @param arg                   Application-specified argument; unused by
- *                                  bleprph.
- *
- * @return                      0 if the application successfully handled the
- *                                  event; nonzero on failure.  The semantics
- *                                  of the return code is specific to the
- *                                  particular GAP event being signalled.
- */
-static int
-bleprph_gap_event(struct ble_gap_event *event, void *arg)
+static xTimerHandle notifyTimer;
+static uint16_t conn_handle;
+
+static void notifyStart() {
+    xTimerStart(notifyTimer, TIMER_PERIOD);
+}
+
+static void notifyStop() {
+    xTimerStop(notifyTimer, TIMER_PERIOD);
+}
+
+static int bleprph_gap_event(struct ble_gap_event *event, void *arg)
 {
     struct ble_gap_conn_desc desc;
     int rc;
@@ -142,6 +139,7 @@ bleprph_gap_event(struct ble_gap_event *event, void *arg)
             rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
             assert(rc == 0);
             bleprph_print_conn_desc(&desc);
+            conn_handle = event->connect.conn_handle;
         }
 
         if (event->connect.status != 0) {
@@ -188,6 +186,17 @@ bleprph_gap_event(struct ble_gap_event *event, void *arg)
          * continue with the pairing operation.
          */
         return BLE_GAP_REPEAT_PAIRING_RETRY;
+
+    case BLE_GAP_EVENT_SUBSCRIBE:
+        if (event->subscribe.attr_handle == angleHandle) {
+            if(event->subscribe.cur_notify) {
+                notifyStart();
+            } else {
+                notifyStop();
+            }
+        }
+        ESP_LOGI("BLE_GAP_SUBSCRIBE_EVENT", "conn_handle from subscribe=%d", conn_handle);
+        break;
     }
 
     return 0;
@@ -233,6 +242,10 @@ void bleprph_host_task(void *param)
     nimble_port_freertos_deinit();
 }
 
+void doNotify(xTimerHandle ev) {
+    ble_gattc_notify(conn_handle, angleHandle);
+}
+
 void
 app_main(void)
 {
@@ -266,6 +279,8 @@ app_main(void)
     //Set OP mode of BNO
     data = 0xC;
     ESP_ERROR_CHECK(writeDevice(BNO, 0x3D, data));
+
+    notifyTimer = xTimerCreate("notifyTimer", TIMER_PERIOD, pdTRUE, (void *)0, doNotify);
 
     int rc;
 

@@ -42,9 +42,10 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
         .uuid = &gatt_svr_svc_sec_test_uuid.u,
         .characteristics = (struct ble_gatt_chr_def[])
         { {
-                /*** Characteristic: Random number generator. */
+                //Angle
                 .uuid = &gatt_svr_chr_sec_test_rand_uuid.u,
                 .access_cb = gatt_svr_chr_access_sec_test,
+                .val_handle = &angleHandle,
                 .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
             }, {
                 0, /* No more characteristics in this service. */
