@@ -79,11 +79,11 @@ gatt_svr_chr_access_sec_test(uint16_t conn_handle, uint16_t attr_handle,
         
         
         int16_t bnoaccX = 0, bnoaccY = 0, bnoaccZ = 0;
-        ESP_ERROR_CHECK(readDevice(BNO, 0x8, (uint8_t*) &bnoaccX, sizeof(bnoaccX)));
-        ESP_ERROR_CHECK(readDevice(BNO, 0xA, (uint8_t*) &bnoaccY, sizeof(bnoaccY)));
-        ESP_ERROR_CHECK(readDevice(BNO, 0xC, (uint8_t*) &bnoaccZ, sizeof(bnoaccZ)));
+        ESP_ERROR_CHECK(readDevice(BNO, 0x2E, (uint8_t*) &bnoaccX, sizeof(bnoaccX)));
+        ESP_ERROR_CHECK(readDevice(BNO, 0x30, (uint8_t*) &bnoaccY, sizeof(bnoaccY)));
+        ESP_ERROR_CHECK(readDevice(BNO, 0x32, (uint8_t*) &bnoaccZ, sizeof(bnoaccZ)));
         
-        ESP_LOGI(tag, "BNO Accel X: %d\tY: %d\tZ: %d" "\tLSM Accel X: %d\tY: %d\tZ: %d", bnoaccX, bnoaccY, bnoaccZ, accX, accY, accZ);
+        ESP_LOGI(tag, "BNO Grav X: %d\tY: %d\tZ: %d" "\tLSM Accel X: %d\tY: %d\tZ: %d", bnoaccX, bnoaccY, bnoaccZ, accX, accY, accZ);
 
         int rc = os_mbuf_append(ctxt->om, &accX, sizeof accX);
         rc = os_mbuf_append(ctxt->om, &accY, sizeof accY);
