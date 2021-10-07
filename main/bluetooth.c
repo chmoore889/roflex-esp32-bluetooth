@@ -11,7 +11,7 @@
 #include "bleprph.h"
 #include "i2c.h"
 
-#define TIMER_PERIOD pdMS_TO_TICKS(1000)
+#define TIMER_PERIOD pdMS_TO_TICKS(500)
 
 static const char *tag = "Bluetooth App";
 
