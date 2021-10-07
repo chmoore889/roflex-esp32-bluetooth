@@ -6,8 +6,6 @@
 #define I2C_MASTER_RX_BUF_DISABLE   0
 #define I2C_MASTER_TIMEOUT_MS       10000
 
-#define LSM9DS1_M   0x1E
-#define LSM9DS1_AG  0x6B
 #define BNO  0x28
 
 void i2cInit(void);

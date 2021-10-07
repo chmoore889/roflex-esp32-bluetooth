@@ -249,19 +249,8 @@ void doNotify(xTimerHandle ev) {
 void
 app_main(void)
 {
-    i2cInit();
-
-    //Ensure LSM device is correct
     uint8_t data;
-    ESP_ERROR_CHECK(readDevice(LSM9DS1_AG, 0x0F, (uint8_t*) &data, sizeof(data)));
-    if(data != 0x68) {
-        ESP_LOGE(tag, "BAD LSM DEVICE");
-        exit(1);
-    }
-    //Bring LSM sensors out of power off state
-    data = 0x20;
-    ESP_ERROR_CHECK(writeDevice(LSM9DS1_AG, 0x10, data));
-
+    i2cInit();
 
     //Ensure BNO is correct
     ESP_ERROR_CHECK(readDevice(BNO, 0x00, (uint8_t*) &data, sizeof(data)));

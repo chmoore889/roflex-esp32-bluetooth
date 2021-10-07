@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include "host/ble_hs.h"
 #include "host/ble_uuid.h"
 #include "services/gap/ble_svc_gap.h"
@@ -8,6 +9,9 @@
 #include "esp_log.h"
 #include "bleprph.h"
 #include "i2c.h"
+
+#define SQUARE(x) (x*x)
+#define RADIANS_TO_DEGREES(x) (x*57.2957795)
 
 static const char *tag = "Gatt svr";
 
@@ -26,7 +30,7 @@ static const ble_uuid128_t gatt_svr_svc_sec_test_uuid =
                      0x99, 0x99, 0x43, 0x95, 0x12, 0x2f, 0x46, 0x59);
 
 /* 5c3a659e-897e-45e1-b016-007107c96df6 */
-static const ble_uuid128_t gatt_svr_chr_sec_test_rand_uuid =
+static const ble_uuid128_t gatt_svr_chr_data =
     BLE_UUID128_INIT(0xf6, 0x6d, 0xc9, 0x07, 0x71, 0x00, 0x16, 0xb0,
                      0xe1, 0x45, 0x7e, 0x89, 0x9e, 0x65, 0x3a, 0x5c);
 
@@ -43,7 +47,7 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
         .characteristics = (struct ble_gatt_chr_def[])
         { {
                 //Angle
-                .uuid = &gatt_svr_chr_sec_test_rand_uuid.u,
+                .uuid = &gatt_svr_chr_data.u,
                 .access_cb = gatt_svr_chr_access_sec_test,
                 .val_handle = &angleHandle,
                 .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
@@ -69,29 +73,19 @@ gatt_svr_chr_access_sec_test(uint16_t conn_handle, uint16_t attr_handle,
      * 128-bit UUID.
      */
 
-    if (ble_uuid_cmp(uuid, &gatt_svr_chr_sec_test_rand_uuid.u) == 0) {
-        assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);
-
-        int16_t accX, accY, accZ;
-        ESP_ERROR_CHECK(readDevice(LSM9DS1_AG, 0x28, (uint8_t*) &accX, sizeof(accX)));
-        ESP_ERROR_CHECK(readDevice(LSM9DS1_AG, 0x2A, (uint8_t*) &accY, sizeof(accY)));
-        ESP_ERROR_CHECK(readDevice(LSM9DS1_AG, 0x2C, (uint8_t*) &accZ, sizeof(accZ)));
-        
+    if (ble_uuid_cmp(uuid, &gatt_svr_chr_data.u) == 0) {
+        assert(ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR);        
         
         int16_t bnoaccX = 0, bnoaccY = 0, bnoaccZ = 0;
         ESP_ERROR_CHECK(readDevice(BNO, 0x2E, (uint8_t*) &bnoaccX, sizeof(bnoaccX)));
         ESP_ERROR_CHECK(readDevice(BNO, 0x30, (uint8_t*) &bnoaccY, sizeof(bnoaccY)));
         ESP_ERROR_CHECK(readDevice(BNO, 0x32, (uint8_t*) &bnoaccZ, sizeof(bnoaccZ)));
         
-        ESP_LOGI(tag, "BNO Grav X: %d\tY: %d\tZ: %d" "\tLSM Accel X: %d\tY: %d\tZ: %d", bnoaccX, bnoaccY, bnoaccZ, accX, accY, accZ);
-
-        int rc = os_mbuf_append(ctxt->om, &accX, sizeof accX);
-        rc = os_mbuf_append(ctxt->om, &accY, sizeof accY);
-        rc = os_mbuf_append(ctxt->om, &accY, sizeof accY);
+        float angle = RADIANS_TO_DEGREES(asinf(bnoaccX / sqrtf((float) (SQUARE(bnoaccX) + SQUARE(bnoaccY) + SQUARE(bnoaccZ)))));
         
-        rc = os_mbuf_append(ctxt->om, &bnoaccX, sizeof accX);
-        rc = os_mbuf_append(ctxt->om, &bnoaccY, sizeof accY);
-        rc = os_mbuf_append(ctxt->om, &bnoaccZ, sizeof accY);
+        ESP_LOGI(tag, "BNO Grav X: %d\tY: %d\tZ: %d\nAngle: %f", bnoaccX, bnoaccY, bnoaccZ, angle);
+        
+        int rc = os_mbuf_append(ctxt->om, &angle, sizeof angle);
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
     }
 
