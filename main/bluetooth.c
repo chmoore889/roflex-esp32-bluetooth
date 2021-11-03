@@ -9,14 +9,14 @@
 #include "services/gap/ble_svc_gap.h"
 #include "esp_log.h"
 #include "bleprph.h"
-#include "i2c.h"
+#include "sensor.h"
+#include "notify.h"
 
-#define TIMER_PERIOD pdMS_TO_TICKS(250)
-
-static const char *tag = "Bluetooth App";
+static const char *tag = "Bluetooth_App";
 
 static int bleprph_gap_event(struct ble_gap_event *event, void *arg);
 static uint8_t own_addr_type;
+static uint16_t conn_handle;
 
 void ble_store_config_init(void);
 
@@ -113,17 +113,6 @@ bleprph_advertise(void)
     }
 }
 
-static xTimerHandle notifyTimer;
-static uint16_t conn_handle;
-
-static void notifyStart() {
-    xTimerStart(notifyTimer, TIMER_PERIOD);
-}
-
-static void notifyStop() {
-    xTimerStop(notifyTimer, TIMER_PERIOD);
-}
-
 static int bleprph_gap_event(struct ble_gap_event *event, void *arg)
 {
     struct ble_gap_conn_desc desc;
@@ -150,6 +139,7 @@ static int bleprph_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_DISCONNECT:
         ESP_LOGI(tag, "disconnect; reason=%d ", event->disconnect.reason);
+        notifyStop();
         bleprph_print_conn_desc(&event->disconnect.conn);
 
         /* Connection terminated; resume advertising. */
@@ -190,10 +180,12 @@ static int bleprph_gap_event(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_SUBSCRIBE:
         if (event->subscribe.attr_handle == angleHandle) {
             if(event->subscribe.cur_notify) {
-                notifyStart();
+                notifyStart(conn_handle);
             } else {
                 notifyStop();
             }
+        } else if (event->subscribe.attr_handle == repHandle) {
+            shouldNotifyCount(event->subscribe.cur_notify);
         }
         ESP_LOGI("BLE_GAP_SUBSCRIBE_EVENT", "conn_handle from subscribe=%d", conn_handle);
         break;
@@ -242,34 +234,11 @@ void bleprph_host_task(void *param)
     nimble_port_freertos_deinit();
 }
 
-void doNotify(xTimerHandle ev) {
-    ble_gattc_notify(conn_handle, angleHandle);
-}
-
 void
 app_main(void)
 {
-    uint8_t data;
-    i2cInit();
-
-    //Ensure BNO is correct
-    ESP_ERROR_CHECK(readDevice(BNO, 0x00, (uint8_t*) &data, sizeof(data)));
-    if(data != 0xA0) {
-        ESP_LOGE(tag, "BAD BNO DEVICE");
-        exit(1);
-    }
-    //Check self-test on BNO
-    ESP_ERROR_CHECK(readDevice(BNO, 0x36, (uint8_t*) &data, sizeof(data)));
-    data = 0xF & data;
-    if(data != 0xF) {
-        ESP_LOGE(tag, "BNO failed self-test: 0x%X", data);
-        exit(1);
-    }
-    //Set OP mode of BNO
-    data = 0xC;
-    ESP_ERROR_CHECK(writeDevice(BNO, 0x3D, data));
-
-    notifyTimer = xTimerCreate("notifyTimer", TIMER_PERIOD, pdTRUE, (void *)0, doNotify);
+    initDevice();
+    initNotify();
 
     int rc;
 
@@ -297,7 +266,7 @@ app_main(void)
     assert(rc == 0);
 
     /* Set the default device name. */
-    rc = ble_svc_gap_device_name_set("roflex");
+    rc = ble_svc_gap_device_name_set("roflex_chris");
     assert(rc == 0);
 
     /* XXX Need to have template for store */
