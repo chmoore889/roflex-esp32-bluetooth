@@ -69,7 +69,6 @@ static void processForCounter(float angle) {
 
 void startCounting(uint16_t notify_conn_handle) {
   isCounting = true;
-  repCount = 0;
   conn_handle = notify_conn_handle;
   
   notifyRepCount();
@@ -78,8 +77,8 @@ void startCounting(uint16_t notify_conn_handle) {
 
 void stopCounting(void) {
   isCounting = false;
-  repCount = 0;
 
+  notifyRepCount();
   stopReading();
 }
 
@@ -89,6 +88,11 @@ uint8_t currRepCount(void) {
 
 bool getIsCounting(void) {
   return isCounting;
+}
+
+void overrideCount(uint8_t count) {
+  repCount = count;
+  notifyRepCount();
 }
 
 float lastAngle(void) {
@@ -161,7 +165,7 @@ void stopReading() {
 
 static void notifyRepCount() {
   if(shouldNotify) {
-    ble_gattc_notify(conn_handle, repCount);
+    ble_gattc_indicate(conn_handle, repHandle);
   }
 }
 

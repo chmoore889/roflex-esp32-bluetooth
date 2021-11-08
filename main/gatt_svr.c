@@ -32,16 +32,17 @@ static const ble_uuid128_t gatt_svr_angle_data =
                      0xe1, 0x45, 0x7e, 0x89, 0x9e, 0x65, 0x3a, 0x5c);
 
 //Count reading UUIDs
-/* 59462f12-9543-9999-12c8-58b459a2712d */
+/* 59462f12-9543-9999-12c8-58b459a2712e */
 static const ble_uuid128_t gatt_svr_rep_uuid =
     BLE_UUID128_INIT(0x2e, 0x71, 0xa2, 0x59, 0xb4, 0x58, 0xc8, 0x12,
                      0x99, 0x99, 0x43, 0x95, 0x12, 0x2f, 0x46, 0x59);
 
-/* 5c3a659e-897e-45e1-b016-007107c96df6 */
+/* 5c3a659e-897e-45e1-b016-007107c96df7 */
 static const ble_uuid128_t gatt_svr_rep_status =
     BLE_UUID128_INIT(0xf7, 0x6d, 0xc9, 0x07, 0x71, 0x00, 0x16, 0xb0,
                      0xe1, 0x45, 0x7e, 0x89, 0x9e, 0x65, 0x3a, 0x5c);
 
+/* 5c3a659e-897e-45e1-b016-007107c96df8 */
 static const ble_uuid128_t gatt_svr_rep_count =
     BLE_UUID128_INIT(0xf8, 0x6d, 0xc9, 0x07, 0x71, 0x00, 0x16, 0xb0,
                      0xe1, 0x45, 0x7e, 0x89, 0x9e, 0x65, 0x3a, 0x5c);
@@ -93,7 +94,7 @@ static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
                 .uuid = &gatt_svr_rep_count.u,
                 .access_cb = gatt_svr_chr_access_rep_count,
                 .val_handle = &repHandle,
-                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+                .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_INDICATE | BLE_GATT_CHR_F_WRITE,
             }, {
                 0, /* No more characteristics in this service. */
             }
@@ -157,9 +158,21 @@ gatt_svr_chr_access_rep_count(uint16_t conn_handle, uint16_t attr_handle,
                              struct ble_gatt_access_ctxt *ctxt,
                              void *arg) {
     uint8_t op = ctxt->op;
-    assert(op == BLE_GATT_ACCESS_OP_READ_CHR);
-    uint8_t repCount = currRepCount();
-    return os_mbuf_append(ctxt->om, &repCount, sizeof repCount);
+    if(op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
+        uint8_t *data = ctxt->om->om_data;
+        uint8_t data_len = ctxt->om->om_len;
+        if(data_len >= 1)
+        {
+            overrideCount(data[0]);
+        }
+        return 0;
+    } else if(op == BLE_GATT_ACCESS_OP_READ_CHR) {
+        uint8_t repCount = currRepCount();
+        return os_mbuf_append(ctxt->om, &repCount, sizeof repCount);
+    }
+        
+    assert(0);
+    return BLE_ATT_ERR_UNLIKELY;
 }
 
 void

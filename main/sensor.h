@@ -8,6 +8,7 @@ uint8_t currRepCount(void);
 
 void startCounting(uint16_t notify_conn_handle);
 void stopCounting(void);
+void overrideCount(uint8_t count);
 void shouldNotifyCount(bool);
 
 void startReading(void);
